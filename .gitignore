@@ -1,0 +1,3 @@
+#Todos os arquivos com a palavra Treinamento_ e _pycache serão ignorados
+Treinamento_*  
+__pycache__/

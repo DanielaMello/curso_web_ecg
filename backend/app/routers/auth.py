@@ -1,23 +1,41 @@
-# backend/app/db_models.py
-from sqlalchemy import String, Date, DateTime, UniqueConstraint, ForeignKey, Float, func
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from datetime import datetime, date
-from backend.app.database import Base
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import or_, func
+from sqlalchemy.orm import Session
 
+from backend.app.database import get_db
+from backend.app.db_models import User
+from backend.app.models.user import UserCreate, UserOut
+from backend.app.utils.security import hash_password
 
-# -----------------------------
-# Usuário
-# -----------------------------
-class User(Base):
-    _tablename_ = "users"
-    _table_args_ = (
-        UniqueConstraint("name", name="uq_users_name"),
-        UniqueConstraint("email", name="uq_users_email"),
-        UniqueConstraint("phone", name="uq_users_phone"),
+router = APIRouter(prefix="/auth", tags=["auth"])
+
+@router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
+def register(payload: UserCreate, db: Session = Depends(get_db)):
+    name_norm = payload.name.strip()
+    email_norm = payload.email
+    phone_norm = payload.phone
+
+    #Validação para verificar se o e-mail ou telefone já existe no banco de dados
+    exists = db.query(User).filter(
+        or_(
+            func.lower(User.name) == name_norm.lower(),
+            func.lower(User.email) == email_norm.lower(),
+            User.phone == phone_norm,
+        )
+    ).first()
+
+    #Caso exista no banco:
+    if exists:
+        raise HTTPException(status_code=409, detail="username/email/phone já cadastrado")
+
+    #Caso não exista, cria o usuário
+    user = User(
+        name=name_norm,
+        email=email_norm,
+        phone=phone_norm,
+        password_hash=hash_password(payload.password),
     )
-
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    name: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
-    email: Mapped[str] = mapped_column(String(255), nullable=False, index=True, unique=True)
-    phone: Mapped[str] = mapped_column(String(20), nullable=False, index=True, unique=True)
-    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
