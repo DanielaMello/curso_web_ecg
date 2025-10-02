@@ -4,8 +4,9 @@ from sqlalchemy.orm import Session
 
 from backend.app.database import get_db
 from backend.app.db_models import User
-from backend.app.models.user import UserCreate, UserOut
+from backend.app.models.user import UserCreate, UserOut, UserLogin, TokenWithUser
 from backend.app.utils.security import hash_password
+from backend.app.services.auth_user import authenticate_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -38,4 +39,17 @@ def register(payload: UserCreate, db: Session = Depends(get_db)):
     db.add(user)
     db.commit()
     db.refresh(user)
-    return user
+    return 
+
+#método e conexão com o banco
+@router.post("/login", response_model=UserOut)
+def login(payload: UserLogin, db: Session = Depends(get_db)):
+    try:
+        user = authenticate_user(db, payload)
+
+        #se der certo, retorna o token e os dados do usuário
+        return user
+    
+    #se der errado, retorna erro 401
+    except ValueError as e:
+        raise HTTPException(status_code=401, detail=str(e))

@@ -22,9 +22,23 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     password: str = Field(..., min_length=6, max_length=100)
 
+#Classe para retornar o usuário e mostrar os dados carregados do banco
 class UserOut(UserBase):
     id: int
     name: str
     email: EmailLower
     phone: PhoneBR      
     model_config = ConfigDict(from_attributes=True)
+
+class UserLogin(BaseModel):
+    email: EmailLower
+    password: str = Field(..., min_length=6, max_length=100)
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+class TokenWithUser(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserOut
